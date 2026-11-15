@@ -8,14 +8,17 @@ public sealed class MusicAssistantClient : IAsyncDisposable
 {
     private readonly HttpClient httpClient;
     private readonly bool ownsClient;
+    private readonly Func<string>? passwordProvider;
     private Uri? serverUri;
     private string? accessToken;
     private string? currentQueueId;
+    private ConnectionSettings? connectionSettings;
 
-    public MusicAssistantClient(HttpClient? httpClient = null)
+    public MusicAssistantClient(HttpClient? httpClient = null, Func<string>? passwordProvider = null)
     {
         ownsClient = httpClient is null;
         this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+        this.passwordProvider = passwordProvider;
         if (!this.httpClient.DefaultRequestHeaders.UserAgent.Any())
         {
             this.httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("MAFloater/0.2.0");
@@ -40,6 +43,7 @@ public sealed class MusicAssistantClient : IAsyncDisposable
         }
 
         serverUri = new Uri(settings.ServerUrl.TrimEnd('/') + "/", UriKind.Absolute);
+        connectionSettings = settings;
         var payload = JsonSerializer.Serialize(new
         {
             provider_id = "builtin",
@@ -86,8 +90,41 @@ public sealed class MusicAssistantClient : IAsyncDisposable
     {
         var queues = await InvokeCommandAsync("player_queues/all", new { }, cancellationToken).ConfigureAwait(false);
         var snapshot = NowPlayingSelector.Select(queues, currentQueueId, preferredQueue);
+        if (snapshot.HasQueue)
+        {
+            snapshot = snapshot with { ArtworkUrl = ResolveArtworkUrl(snapshot.ArtworkUrl) };
+            var players = await InvokeCommandAsync("players/all", new { }, cancellationToken).ConfigureAwait(false);
+            snapshot = ApplyPlayerVolume(snapshot, players);
+        }
+
         currentQueueId = snapshot.HasQueue ? snapshot.QueueId : null;
         return snapshot;
+    }
+
+    public Task PreviousAsync(string queueId, CancellationToken cancellationToken = default) =>
+        InvokeControlAsync("player_queues/previous", new { queue_id = queueId }, cancellationToken);
+
+    public Task PlayPauseAsync(string queueId, CancellationToken cancellationToken = default) =>
+        InvokeControlAsync("player_queues/play_pause", new { queue_id = queueId }, cancellationToken);
+
+    public Task NextAsync(string queueId, CancellationToken cancellationToken = default) =>
+        InvokeControlAsync("player_queues/next", new { queue_id = queueId }, cancellationToken);
+
+    public Task SetShuffleAsync(string queueId, bool enabled, CancellationToken cancellationToken = default) =>
+        InvokeControlAsync("player_queues/shuffle", new { queue_id = queueId, shuffle_enabled = enabled }, cancellationToken);
+
+    public Task SetRepeatAsync(string queueId, string mode, CancellationToken cancellationToken = default) =>
+        InvokeControlAsync("player_queues/repeat", new { queue_id = queueId, repeat_mode = mode }, cancellationToken);
+
+    public Task SetVolumeAsync(string playerId, int level, CancellationToken cancellationToken = default) =>
+        InvokeControlAsync(
+            "players/cmd/volume_set",
+            new { player_id = playerId, volume_level = Math.Clamp(level, 0, 100) },
+            cancellationToken);
+
+    private async Task InvokeControlAsync(string command, object arguments, CancellationToken cancellationToken)
+    {
+        _ = await InvokeCommandAsync(command, arguments, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task LogoutAsync(CancellationToken cancellationToken = default)
@@ -99,7 +136,7 @@ public sealed class MusicAssistantClient : IAsyncDisposable
 
         try
         {
-            await InvokeCommandAsync("auth/logout", new { }, cancellationToken).ConfigureAwait(false);
+            await InvokeCommandAsync("auth/logout", new { }, cancellationToken, allowRefresh: false).ConfigureAwait(false);
         }
         catch
         {
@@ -114,7 +151,8 @@ public sealed class MusicAssistantClient : IAsyncDisposable
     private async Task<JsonElement> InvokeCommandAsync(
         string command,
         object arguments,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool allowRefresh = true)
     {
         if (!IsConnected || serverUri is null)
         {
@@ -127,31 +165,90 @@ public sealed class MusicAssistantClient : IAsyncDisposable
             message_id = Guid.NewGuid().ToString("N"),
             args = arguments
         });
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(serverUri, "api"))
+        for (var attempt = 0; attempt < 2; attempt++)
         {
-            Content = new StringContent(payload, Encoding.UTF8, "application/json")
-        };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"Music Assistant request failed (HTTP {(int)response.StatusCode}).");
+            using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(serverUri, "api"))
+            {
+                Content = new StringContent(payload, Encoding.UTF8, "application/json")
+            };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized &&
+                attempt == 0 && allowRefresh && connectionSettings is not null && passwordProvider is not null)
+            {
+                accessToken = null;
+                await LoginAsync(connectionSettings, passwordProvider(), cancellationToken).ConfigureAwait(false);
+                continue;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException($"Music Assistant request failed (HTTP {(int)response.StatusCode}).");
+            }
+
+            using var document = JsonDocument.Parse(body);
+            var root = document.RootElement;
+            if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("error_code", out _))
+            {
+                var detail = GetString(root, "details");
+                throw new InvalidOperationException(string.IsNullOrWhiteSpace(detail)
+                    ? "Music Assistant rejected the request."
+                    : detail);
+            }
+
+            return root.ValueKind == JsonValueKind.Object && root.TryGetProperty("result", out var result)
+                ? result.Clone()
+                : root.Clone();
         }
 
-        using var document = JsonDocument.Parse(body);
-        var root = document.RootElement;
-        if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("error_code", out _))
+        throw new InvalidOperationException("Music Assistant sign-in could not be refreshed.");
+    }
+
+    private string ResolveArtworkUrl(string artworkUrl)
+    {
+        if (string.IsNullOrWhiteSpace(artworkUrl) || serverUri is null)
         {
-            var detail = GetString(root, "details");
-            throw new InvalidOperationException(string.IsNullOrWhiteSpace(detail)
-                ? "Music Assistant rejected the request."
-                : detail);
+            return string.Empty;
         }
 
-        return root.ValueKind == JsonValueKind.Object && root.TryGetProperty("result", out var result)
-            ? result.Clone()
-            : root.Clone();
+        return Uri.TryCreate(artworkUrl, UriKind.Absolute, out var absolute)
+            ? absolute.AbsoluteUri
+            : new Uri(serverUri, artworkUrl.TrimStart('/')).AbsoluteUri;
+    }
+
+    private static NowPlayingSnapshot ApplyPlayerVolume(NowPlayingSnapshot snapshot, JsonElement players)
+    {
+        if (players.ValueKind != JsonValueKind.Array)
+        {
+            return snapshot;
+        }
+
+        foreach (var player in players.EnumerateArray())
+        {
+            if (!string.Equals(GetString(player, "player_id"), snapshot.QueueId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var available = player.TryGetProperty("available", out var availableValue) &&
+                availableValue.ValueKind == JsonValueKind.True;
+            var supportsVolume = player.TryGetProperty("supported_features", out var features) &&
+                features.ValueKind == JsonValueKind.Array &&
+                features.EnumerateArray().Any(feature =>
+                    feature.ValueKind == JsonValueKind.String && feature.GetString() == "volume_set");
+            var volume = player.TryGetProperty("volume_level", out var volumeValue) &&
+                volumeValue.TryGetDouble(out var level)
+                ? (int)Math.Round(Math.Clamp(level, 0, 100))
+                : 0;
+            return snapshot with
+            {
+                SupportsVolume = available && supportsVolume,
+                VolumeLevel = volume
+            };
+        }
+
+        return snapshot;
     }
 
     private static string GetString(JsonElement element, string propertyName) =>

@@ -43,7 +43,13 @@ public static class NowPlayingSelector
             GetString(queue, "display_name"),
             GetString(queue, "state"),
             GetTitle(item),
-            GetArtist(item));
+            GetArtist(item),
+            GetArtworkUrl(item),
+            GetInteger(queue, "items") > 1,
+            GetBoolean(queue, "shuffle_enabled"),
+            GetString(queue, "repeat_mode") is { Length: > 0 } repeatMode ? repeatMode : "off",
+            false,
+            0);
     }
 
     private static JsonElement? FindById(IEnumerable<JsonElement> queues, string? queueId) =>
@@ -63,6 +69,9 @@ public static class NowPlayingSelector
 
     private static bool GetBoolean(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.True;
+
+    private static int GetInteger(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.TryGetInt32(out var number) ? number : 0;
 
     private static string GetString(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
@@ -113,6 +122,20 @@ public static class NowPlayingSelector
         }
 
         return "Unknown artist";
+    }
+
+    private static string GetArtworkUrl(JsonElement item)
+    {
+        var streamUrl = GetNestedString(item, "streamdetails", "stream_metadata", "image_url");
+        if (!string.IsNullOrWhiteSpace(streamUrl))
+        {
+            return streamUrl;
+        }
+
+        var proxyId = GetNestedString(item, "image", "proxy_id");
+        return string.IsNullOrWhiteSpace(proxyId)
+            ? string.Empty
+            : "imageproxy/" + Uri.EscapeDataString(proxyId);
     }
 
     private static string GetNestedString(JsonElement element, params string[] path)

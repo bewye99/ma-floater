@@ -85,7 +85,7 @@ Developers with the .NET 10 SDK can build, check, and publish the native foundat
 .\Build-Native.ps1
 ```
 
-Generated files are written under `artifacts\win-x64` and are not tracked. The native branch currently provides the branded Windows shell, a first-run setup window, compatible current-user DPAPI credential storage, Guest-only Music Assistant authentication, and read-only now-playing synchronization. Playback controls and complete feature parity remain future migration checkpoints.
+Generated files are written under `artifacts\win-x64` and are not tracked. The native branch currently provides the branded Windows shell, first-run setup, compatible current-user DPAPI credential storage, Guest-only authentication with token refresh, now-playing artwork, playback/shuffle/repeat controls, and supported-player volume. Compact-window behavior, autostart, and installer packaging remain future migration checkpoints.
 
 ## Run
 

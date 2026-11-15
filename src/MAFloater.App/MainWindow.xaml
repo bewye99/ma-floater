@@ -47,7 +47,7 @@
 
             <Border Grid.RowSpan="3" Width="78" Height="78" HorizontalAlignment="Left"
                     VerticalAlignment="Center" CornerRadius="8" Background="#262A33">
-                <Image Source="Assets/ma-floater.png" Margin="8" Stretch="Uniform" />
+                <Image x:Name="ArtworkImage" Source="Assets/ma-floater.png" Margin="8" Stretch="Uniform" />
             </Border>
 
             <StackPanel Grid.Column="1" Margin="2,7,66,0">
@@ -71,16 +71,16 @@
             </StackPanel>
 
             <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Content="&#xE892;" ToolTip="Previous" IsEnabled="False"
-                        Style="{StaticResource TransportButton}" />
-                <Button Content="&#xE768;" ToolTip="Play" IsEnabled="False"
-                        Style="{StaticResource TransportButton}" />
-                <Button Content="&#xE893;" ToolTip="Next" IsEnabled="False"
-                        Style="{StaticResource TransportButton}" />
-                <Button Content="&#xE8B1;" ToolTip="Shuffle" IsEnabled="False"
-                        Style="{StaticResource TransportButton}" />
-                <Button Content="&#xE8EE;" ToolTip="Repeat" IsEnabled="False"
-                        Style="{StaticResource TransportButton}" Margin="0" />
+                <Button x:Name="PreviousButton" Content="&#xE892;" ToolTip="Previous" IsEnabled="False"
+                        Style="{StaticResource TransportButton}" Click="PreviousButton_Click" />
+                <Button x:Name="PlayPauseButton" Content="&#xE768;" ToolTip="Play" IsEnabled="False"
+                        Style="{StaticResource TransportButton}" Click="PlayPauseButton_Click" />
+                <Button x:Name="NextButton" Content="&#xE893;" ToolTip="Next" IsEnabled="False"
+                        Style="{StaticResource TransportButton}" Click="NextButton_Click" />
+                <Button x:Name="ShuffleButton" Content="&#xE8B1;" ToolTip="Shuffle" IsEnabled="False"
+                        Style="{StaticResource TransportButton}" Click="ShuffleButton_Click" />
+                <Button x:Name="RepeatButton" Content="&#xE8EE;" ToolTip="Repeat" IsEnabled="False"
+                        Style="{StaticResource TransportButton}" Margin="0" Click="RepeatButton_Click" />
             </StackPanel>
 
             <Grid Grid.Column="1" Grid.Row="2" Margin="1,1,4,0">
@@ -91,9 +91,11 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="&#xE767;" FontFamily="Segoe MDL2 Assets" Foreground="#8B8F99"
                            VerticalAlignment="Center" />
-                <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="0" IsEnabled="False"
-                        Margin="4,0,8,0" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Text="--%" Foreground="#8B8F99" FontSize="10"
+                <Slider x:Name="VolumeSlider" Grid.Column="1" Minimum="0" Maximum="100" Value="0" IsEnabled="False"
+                        Margin="4,0,8,0" VerticalAlignment="Center" ValueChanged="VolumeSlider_ValueChanged"
+                        PreviewMouseLeftButtonUp="VolumeSlider_PreviewMouseLeftButtonUp"
+                        PreviewKeyUp="VolumeSlider_PreviewKeyUp" />
+                <TextBlock x:Name="VolumeText" Grid.Column="2" Text="--%" Foreground="#8B8F99" FontSize="10"
                            TextAlignment="Right" VerticalAlignment="Center" />
             </Grid>
         </Grid>
