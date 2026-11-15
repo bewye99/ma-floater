@@ -45,9 +45,13 @@ MA Floater connects to the configured Music Assistant server. Artwork may also b
 
 Use an `https://` Music Assistant URL when the server is reachable over an untrusted network. An `http://` connection does not encrypt the Guest username, password, access token, playback data, or control commands in transit; use HTTP only on a network you trust. External artwork is downloaded through a separate client that does not receive the Music Assistant authorization token.
 
-## Setup
+## Set up Music Assistant access
 
-Create the dedicated Guest account in **Music Assistant → Settings → User Management**. Then open Windows PowerShell in the project folder and run:
+Both implementations require a dedicated Guest account created in **Music Assistant → Settings → User Management**.
+
+### Public PowerShell release
+
+Open Windows PowerShell in the project folder and run:
 
 ```powershell
 .\Set-MusicAssistantConnection.ps1
@@ -60,6 +64,12 @@ The script prompts for the server URL, Guest username, optional preferred fallba
 ```
 
 Do not put a password in a command or script argument. The password is always requested through the masked prompt.
+
+### Native rewrite
+
+Run the published native executable. If no saved connection exists, its first-run setup window prompts for the Music Assistant server URL, Guest username, optional preferred fallback queue, and password.
+
+The native application uses the same `%LOCALAPPDATA%\MAFloater` settings and DPAPI-protected credential as the PowerShell release. Existing settings are reused automatically. `Set-MusicAssistantConnection.ps1` remains compatible for preconfiguration but is not required.
 
 ## Build and test
 
@@ -131,10 +141,10 @@ These scripts currently register the PowerShell launcher. Native autostart has n
 
 ## Removal
 
-1. Run `Remove-Autostart.ps1`.
-2. Exit MA Floater.
-3. Delete the project folder.
-4. Delete `%LOCALAPPDATA%\MAFloater` to remove its encrypted credential and settings.
+1. If the public PowerShell autostart task was installed, run `Remove-Autostart.ps1`. The native rewrite does not currently install an autostart task.
+2. Exit every running MA Floater instance.
+3. Delete the project folder and any separately copied native publication.
+4. Delete `%LOCALAPPDATA%\MAFloater` to remove the shared encrypted credential and settings.
 5. Delete or disable the dedicated Music Assistant Guest account if it is no longer needed.
 
 ## Project layout
