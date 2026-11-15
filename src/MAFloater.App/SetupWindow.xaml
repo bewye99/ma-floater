@@ -1,0 +1,71 @@
+<Window x:Class="MAFloater.App.SetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Set up MA Floater" Width="470" Height="390"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="#181A20" Foreground="White" ShowInTaskbar="False"
+        Icon="Assets/ma-floater.ico">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,18">
+            <Image Source="Assets/ma-floater.png" Width="54" Height="54" Margin="0,0,14,0" />
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Connect to Music Assistant" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock Text="Use a dedicated account with the Guest role." Foreground="#BEC1C9" />
+            </StackPanel>
+        </StackPanel>
+
+        <TextBlock Grid.Row="1" Text="Music Assistant address" Foreground="#D8DBE2" />
+        <TextBox x:Name="ServerUrlBox" Grid.Row="2" Height="32" Margin="0,5,0,12"
+                 Padding="8,5" Background="#292C34" Foreground="White" BorderBrush="#555A66" />
+
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Guest username" Foreground="#D8DBE2" />
+                <TextBox x:Name="UsernameBox" Height="32" Margin="0,5,0,12" Padding="8,5"
+                         Background="#292C34" Foreground="White" BorderBrush="#555A66" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="Preferred fallback queue (optional)" Foreground="#D8DBE2" />
+                <TextBox x:Name="PreferredQueueBox" Height="32" Margin="0,5,0,12" Padding="8,5"
+                         Background="#292C34" Foreground="White" BorderBrush="#555A66" />
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Grid.Row="4" Text="Guest password" Foreground="#D8DBE2" />
+        <PasswordBox x:Name="PasswordBox" Grid.Row="5" Height="32" Margin="0,5,0,6" Padding="8,5"
+                     Background="#292C34" Foreground="White" BorderBrush="#555A66" />
+
+        <StackPanel Grid.Row="6">
+            <TextBlock Text="The password is protected with Windows Data Protection for this Windows user."
+                       Foreground="#9EA3AF" FontSize="11" TextWrapping="Wrap" />
+            <TextBlock Text="HTTP is appropriate only on a network you trust; use HTTPS across untrusted networks."
+                       Foreground="#E6B85C" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,0" />
+            <TextBlock x:Name="StatusText" Foreground="#5CBFFF" FontSize="11"
+                       TextWrapping="Wrap" Margin="0,10,0,0" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Cancel" Width="88" Height="32" Margin="0,0,8,0"
+                    Click="CancelButton_Click" />
+            <Button x:Name="SaveButton" Content="Test and save" Width="116" Height="32"
+                    Background="#168ED1" Foreground="White" FontWeight="SemiBold"
+                    Click="SaveButton_Click" />
+        </StackPanel>
+    </Grid>
+</Window>

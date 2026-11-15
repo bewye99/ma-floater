@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="src/MAFloater.Core/MAFloater.Core.csproj" />
+  <Project Path="src/MAFloater.App/MAFloater.App.csproj" />
+  <Project Path="tests/MAFloater.FoundationChecks/MAFloater.FoundationChecks.csproj" />
+</Solution>
