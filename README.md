@@ -4,7 +4,7 @@ MA Floater is an unofficial, lightweight floating controller for [Music Assistan
 
 MA Floater is an independent community project. It is not affiliated with or endorsed by Music Assistant or the Open Home Foundation.
 
-The public 0.1.0 release is the PowerShell implementation described below. A native .NET/WPF replacement is being developed separately on the `native-rewrite` branch and is not yet the public runtime.
+The public 0.1.0 release is the PowerShell implementation described below. The repository also contains an in-progress native .NET/WPF replacement, but it is not yet the public runtime.
 
 ## Features
 
@@ -91,7 +91,7 @@ The tests validate PowerShell syntax, source/build equality, public branding, ab
 
 ### Native application foundation
 
-Native Windows development is isolated on the `native-rewrite` branch while the PowerShell implementation remains the working reference. The native solution targets .NET 10 LTS and publishes a self-contained Windows x64 executable, so eventual users will not need to install .NET separately.
+The native Windows replacement is being developed alongside the PowerShell implementation, which remains the working reference. The native solution targets .NET 10 LTS and publishes a self-contained Windows x64 executable, so eventual users will not need to install .NET separately.
 
 Developers with the .NET 10 SDK can build, check, and publish the native foundation with:
 
