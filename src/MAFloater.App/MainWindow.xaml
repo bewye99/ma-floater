@@ -6,6 +6,7 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="CanResizeWithGrip" ShowInTaskbar="True" Topmost="True"
         Icon="Assets/ma-floater.ico"
+        Loaded="Window_Loaded"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         Closed="Window_Closed">
     <Window.Resources>
@@ -50,10 +51,11 @@
             </Border>
 
             <StackPanel Grid.Column="1" Margin="2,7,66,0">
-                <TextBlock Text="Native foundation" Foreground="White" FontSize="15"
+                <TextBlock x:Name="TrackTitle" Text="Connecting…" Foreground="White" FontSize="15"
                            FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="MA Floater" Foreground="#BEC1C9" FontSize="12" Margin="0,3,0,0" />
-                <TextBlock x:Name="StatusText" Text="Music Assistant • Setup will follow"
+                <TextBlock x:Name="ArtistText" Text="Music Assistant" Foreground="#BEC1C9" FontSize="12" Margin="0,3,0,0"
+                           TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="StatusText" Text="Music Assistant • Connecting"
                            Foreground="#5CBFFF" FontSize="10" Margin="0,5,0,0"
                            TextTrimming="CharacterEllipsis" />
             </StackPanel>
