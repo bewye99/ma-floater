@@ -9,3 +9,10 @@ credential.dat
 settings.txt
 Thumbs.db
 .DS_Store
+artifacts/
+src/MAFloater.App/bin/
+src/MAFloater.App/obj/
+src/MAFloater.Core/bin/
+src/MAFloater.Core/obj/
+tests/MAFloater.FoundationChecks/bin/
+tests/MAFloater.FoundationChecks/obj/

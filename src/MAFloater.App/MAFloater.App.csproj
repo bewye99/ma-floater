@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>MAFloater.App</RootNamespace>
+    <AssemblyName>MAFloater</AssemblyName>
+    <ApplicationIcon>..\..\assets\ma-floater.ico</ApplicationIcon>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MAFloater.Core\MAFloater.Core.csproj" />
+    <Resource Include="..\..\assets\ma-floater.ico" Link="Assets\ma-floater.ico" />
+    <Resource Include="..\..\assets\ma-floater.png" Link="Assets\ma-floater.png" />
+  </ItemGroup>
+</Project>

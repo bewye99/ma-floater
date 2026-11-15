@@ -75,6 +75,18 @@ Run the dependency-free verification suite after changing the project:
 
 The tests validate PowerShell syntax, source/build equality, public branding, absence of known personal defaults, and queue-selection behavior.
 
+### Native application foundation
+
+Native Windows development is isolated on the `native-rewrite` branch while the PowerShell implementation remains the working reference. The native solution targets .NET 10 LTS and publishes a self-contained Windows x64 executable, so eventual users will not need to install .NET separately.
+
+Developers with the .NET 10 SDK can build, check, and publish the native foundation with:
+
+```powershell
+.\Build-Native.ps1
+```
+
+Generated files are written under `artifacts\win-x64` and are not tracked. The native foundation currently provides the branded Windows shell and settings compatibility structure; Music Assistant connectivity and feature parity remain future migration checkpoints.
+
 ## Run
 
 ```powershell
