@@ -6,6 +6,12 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>MAFloater.App</RootNamespace>
     <AssemblyName>MAFloater</AssemblyName>
+    <Version>0.1.0</Version>
+    <FileVersion>0.1.0.0</FileVersion>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <Authors>bewye99</Authors>
+    <Product>MA Floater</Product>
+    <Description>A lightweight floating Music Assistant controller for Windows.</Description>
     <ApplicationIcon>..\..\assets\ma-floater.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>

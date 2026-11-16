@@ -15,7 +15,9 @@ public partial class MainWindow : Window
     private readonly Icon brandIcon;
     private readonly WinForms.NotifyIcon trayIcon;
     private readonly DispatcherTimer refreshTimer;
+    private readonly DispatcherTimer compactTimer;
     private readonly ArtworkClient artworkClient;
+    private WinForms.ToolStripMenuItem startupMenuItem = null!;
     private MusicAssistantClient? musicAssistantClient;
     private ConnectionSettings? connectionSettings;
     private NowPlayingSnapshot? currentSnapshot;
@@ -24,6 +26,9 @@ public partial class MainWindow : Window
     private bool controlInProgress;
     private bool updatingVolume;
     private bool allowClose;
+    private bool isCompact;
+    private double expandedWidth = 390;
+    private double expandedHeight = 150;
 
     public MainWindow()
     {
@@ -33,6 +38,8 @@ public partial class MainWindow : Window
         artworkClient = new ArtworkClient();
         refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         refreshTimer.Tick += RefreshTimer_Tick;
+        compactTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+        compactTimer.Tick += CompactTimer_Tick;
     }
 
     private static Icon LoadBrandIcon()
@@ -54,6 +61,13 @@ public partial class MainWindow : Window
         menu.Items.Add("Open player", null, (_, _) => Dispatcher.BeginInvoke(RestoreWindow));
         menu.Items.Add("Connection settings…", null, (_, _) =>
             Dispatcher.BeginInvoke(new Action(async () => await ConfigureConnectionAsync())));
+        startupMenuItem = new WinForms.ToolStripMenuItem("Start with Windows")
+        {
+            Checked = StartupRegistration.IsEnabled()
+        };
+        startupMenuItem.Click += (_, _) => Dispatcher.BeginInvoke(ToggleStartupRegistration);
+        menu.Items.Add(startupMenuItem);
+        menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) =>
             Dispatcher.BeginInvoke(new Action(async () => await ExitApplicationAsync())));
 
@@ -70,7 +84,17 @@ public partial class MainWindow : Window
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        RestartCompactTimer();
         await InitializeConnectionAsync();
+    }
+
+    private void CompactTimer_Tick(object? sender, EventArgs e)
+    {
+        compactTimer.Stop();
+        if (!IsMouseOver && WindowState == WindowState.Normal && IsEnabled)
+        {
+            SetCompactMode(true);
+        }
     }
 
     private async Task InitializeConnectionAsync()
@@ -95,6 +119,8 @@ public partial class MainWindow : Window
 
     private async Task ConfigureConnectionAsync()
     {
+        compactTimer.Stop();
+        SetCompactMode(false);
         refreshTimer.Stop();
         await DisconnectAsync();
 
@@ -114,6 +140,7 @@ public partial class MainWindow : Window
         if (setup.ShowDialog() != true)
         {
             ShowUnavailable("Music Assistant setup needed", "Open Connection settings from the tray menu.");
+            RestartCompactTimer();
             return;
         }
 
@@ -126,6 +153,10 @@ public partial class MainWindow : Window
         catch (Exception exception)
         {
             ShowUnavailable("Music Assistant sign-in required", exception.Message);
+        }
+        finally
+        {
+            RestartCompactTimer();
         }
     }
 
@@ -348,7 +379,125 @@ public partial class MainWindow : Window
     {
         Show();
         WindowState = WindowState.Normal;
+        SetCompactMode(false);
         Activate();
+        RestartCompactTimer();
+    }
+
+    private void SetCompactMode(bool compact)
+    {
+        if (compact == isCompact)
+        {
+            return;
+        }
+
+        var right = Left + ActualWidth;
+        var bottom = Top + ActualHeight;
+        if (compact)
+        {
+            expandedWidth = Math.Max(330, ActualWidth);
+            expandedHeight = Math.Max(136, ActualHeight);
+            StatusText.Visibility = Visibility.Collapsed;
+            ChromePanel.Visibility = Visibility.Collapsed;
+            TransportPanel.Visibility = Visibility.Collapsed;
+            VolumePanel.Visibility = Visibility.Collapsed;
+            LayoutGrid.Margin = new Thickness(8);
+            ArtworkColumn.Width = new GridLength(58);
+            TransportRow.Height = new GridLength(0);
+            VolumeRow.Height = new GridLength(0);
+            ArtworkFrame.Width = 50;
+            ArtworkFrame.Height = 50;
+            InfoPanel.Margin = new Thickness(2, 5, 4, 0);
+            TrackTitle.FontSize = 14;
+            ArtistText.FontSize = 11;
+            ResizeMode = ResizeMode.NoResize;
+            MinWidth = 240;
+            MinHeight = 68;
+            Width = 280;
+            Height = 74;
+        }
+        else
+        {
+            StatusText.Visibility = Visibility.Visible;
+            ChromePanel.Visibility = Visibility.Visible;
+            TransportPanel.Visibility = Visibility.Visible;
+            VolumePanel.Visibility = Visibility.Visible;
+            LayoutGrid.Margin = new Thickness(12);
+            ArtworkColumn.Width = new GridLength(92);
+            TransportRow.Height = new GridLength(34);
+            VolumeRow.Height = new GridLength(24);
+            ArtworkFrame.Width = 78;
+            ArtworkFrame.Height = 78;
+            InfoPanel.Margin = new Thickness(2, 7, 66, 0);
+            TrackTitle.FontSize = 15;
+            ArtistText.FontSize = 12;
+            MinWidth = 330;
+            MinHeight = 136;
+            Width = expandedWidth;
+            Height = expandedHeight;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
+        }
+
+        Left = right - Width;
+        Top = bottom - Height;
+        isCompact = compact;
+        ClampToWorkArea();
+    }
+
+    private void ClampToWorkArea()
+    {
+        var workArea = SystemParameters.WorkArea;
+        Left = Math.Min(Math.Max(Left, workArea.Left), Math.Max(workArea.Left, workArea.Right - Width));
+        Top = Math.Min(Math.Max(Top, workArea.Top), Math.Max(workArea.Top, workArea.Bottom - Height));
+    }
+
+    private void RestartCompactTimer()
+    {
+        compactTimer.Stop();
+        if (!IsMouseOver && WindowState == WindowState.Normal && IsEnabled)
+        {
+            compactTimer.Start();
+        }
+    }
+
+    private void Window_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        compactTimer.Stop();
+        SetCompactMode(false);
+    }
+
+    private void Window_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e) => RestartCompactTimer();
+
+    private void Window_StateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Normal)
+        {
+            RestartCompactTimer();
+        }
+        else
+        {
+            compactTimer.Stop();
+        }
+    }
+
+    private void ToggleStartupRegistration()
+    {
+        var enable = !StartupRegistration.IsEnabled();
+        try
+        {
+            StartupRegistration.SetEnabled(enable);
+            startupMenuItem.Checked = StartupRegistration.IsEnabled();
+        }
+        catch (Exception exception)
+        {
+            startupMenuItem.Checked = StartupRegistration.IsEnabled();
+            System.Windows.MessageBox.Show(
+                this,
+                exception.Message,
+                "MA Floater startup",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 
     private async Task DisconnectAsync()
@@ -367,6 +516,7 @@ public partial class MainWindow : Window
     {
         allowClose = true;
         refreshTimer.Stop();
+        compactTimer.Stop();
         await DisconnectAsync();
         Close();
         System.Windows.Application.Current.Shutdown();
@@ -408,6 +558,7 @@ public partial class MainWindow : Window
 
     private void Window_Closed(object? sender, EventArgs e)
     {
+        compactTimer.Stop();
         trayIcon.Visible = false;
         trayIcon.ContextMenuStrip?.Dispose();
         trayIcon.Dispose();

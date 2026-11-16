@@ -7,6 +7,9 @@
         ResizeMode="CanResizeWithGrip" ShowInTaskbar="True" Topmost="True"
         Icon="Assets/ma-floater.ico"
         Loaded="Window_Loaded"
+        StateChanged="Window_StateChanged"
+        MouseEnter="Window_MouseEnter"
+        MouseLeave="Window_MouseLeave"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         Closed="Window_Closed">
     <Window.Resources>
@@ -33,24 +36,24 @@
         </Style>
     </Window.Resources>
 
-    <Border Background="#F014161B" BorderBrush="#626773" BorderThickness="1" CornerRadius="17">
-        <Grid Margin="12">
+    <Border x:Name="WindowBorder" Background="#F014161B" BorderBrush="#626773" BorderThickness="1" CornerRadius="17">
+        <Grid x:Name="LayoutGrid" Margin="12">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="92" />
+                <ColumnDefinition x:Name="ArtworkColumn" Width="92" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
-                <RowDefinition Height="34" />
-                <RowDefinition Height="24" />
+                <RowDefinition x:Name="TransportRow" Height="34" />
+                <RowDefinition x:Name="VolumeRow" Height="24" />
             </Grid.RowDefinitions>
 
-            <Border Grid.RowSpan="3" Width="78" Height="78" HorizontalAlignment="Left"
+            <Border x:Name="ArtworkFrame" Grid.RowSpan="3" Width="78" Height="78" HorizontalAlignment="Left"
                     VerticalAlignment="Center" CornerRadius="8" Background="#262A33">
                 <Image x:Name="ArtworkImage" Source="Assets/ma-floater.png" Margin="8" Stretch="Uniform" />
             </Border>
 
-            <StackPanel Grid.Column="1" Margin="2,7,66,0">
+            <StackPanel x:Name="InfoPanel" Grid.Column="1" Margin="2,7,66,0">
                 <TextBlock x:Name="TrackTitle" Text="Connecting…" Foreground="White" FontSize="15"
                            FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                 <TextBlock x:Name="ArtistText" Text="Music Assistant" Foreground="#BEC1C9" FontSize="12" Margin="0,3,0,0"
@@ -60,7 +63,7 @@
                            TextTrimming="CharacterEllipsis" />
             </StackPanel>
 
-            <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Top"
+            <StackPanel x:Name="ChromePanel" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Top"
                         Orientation="Horizontal" Margin="0,-6,-5,0">
                 <Button x:Name="PinButton" Content="&#xE718;" ToolTip="Keep on top"
                         Style="{StaticResource ChromeButton}" Click="PinButton_Click" />
@@ -70,7 +73,7 @@
                         Style="{StaticResource ChromeButton}" Click="CloseButton_Click" />
             </StackPanel>
 
-            <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center">
+            <StackPanel x:Name="TransportPanel" Grid.Column="1" Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <Button x:Name="PreviousButton" Content="&#xE892;" ToolTip="Previous" IsEnabled="False"
                         Style="{StaticResource TransportButton}" Click="PreviousButton_Click" />
                 <Button x:Name="PlayPauseButton" Content="&#xE768;" ToolTip="Play" IsEnabled="False"
@@ -83,7 +86,7 @@
                         Style="{StaticResource TransportButton}" Margin="0" Click="RepeatButton_Click" />
             </StackPanel>
 
-            <Grid Grid.Column="1" Grid.Row="2" Margin="1,1,4,0">
+            <Grid x:Name="VolumePanel" Grid.Column="1" Grid.Row="2" Margin="1,1,4,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="18" />
                     <ColumnDefinition Width="*" />

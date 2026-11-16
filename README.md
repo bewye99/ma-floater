@@ -4,7 +4,7 @@ MA Floater is an unofficial, lightweight floating controller for [Music Assistan
 
 MA Floater is an independent community project. It is not affiliated with or endorsed by Music Assistant or the Open Home Foundation.
 
-The current 0.1.0 PowerShell implementation is described below. The repository also contains an in-progress native .NET/WPF replacement, but it is not yet the default runtime.
+The current 0.1.0 PowerShell implementation is described below. The repository also contains an in-progress native .NET/WPF replacement and single-EXE Windows installer, but they are not yet the default release.
 
 ## Features
 
@@ -103,7 +103,32 @@ Developers with the .NET 10 SDK can build, check, and publish the native foundat
 
 `Build-Native.ps1` restores and builds the native solution, runs its foundation checks, and creates a self-contained Windows x64 publication. Generated files are written under `artifacts\win-x64` and are not tracked.
 
-The native implementation currently provides the branded Windows shell, first-run setup, compatible current-user DPAPI credential storage, Guest-only authentication with token refresh, now-playing artwork, playback/shuffle/repeat controls, and supported-player volume. Compact-window behavior, native autostart, and installer packaging remain future migration checkpoints.
+The native implementation currently provides the branded Windows shell, first-run setup, compatible current-user DPAPI credential storage, Guest-only authentication with token refresh, now-playing artwork, playback/shuffle/repeat controls, supported-player volume, compact-window behavior, and optional per-user autostart.
+
+> [!WARNING]
+> The native application and installer are currently unsigned development artifacts, not public releases. Windows 11 Smart App Control can block them. Do not disable Smart App Control as a workaround.
+
+### Build the native Windows installer
+
+The installer is intended for a standard per-user installation and does not request administrator access. It installs the native executable under `%LOCALAPPDATA%\Programs\MA Floater`, creates the Start menu entry, offers optional startup and desktop shortcuts, registers an uninstaller, and can launch MA Floater when setup finishes. Music Assistant credentials are never bundled; the native first-run window collects them after installation.
+
+Install [Inno Setup 7](https://jrsoftware.org/isdl.php), then run:
+
+```powershell
+.\Build-Installer.ps1
+```
+
+The build first runs all native checks and creates the self-contained application, then writes the single downloadable installer to `artifacts\installer`. Use `-SkipNativeBuild` only when an unchanged, already-verified `artifacts\win-x64\MAFloater.exe` is present.
+
+The installer preserves `%LOCALAPPDATA%\MAFloater` during upgrades and removal so a normal reinstall does not discard the encrypted credential or settings. The removal section below explains how to erase that data intentionally.
+
+### Code signing and public releases
+
+MA Floater does not currently publish a native Windows installer. A public native release requires trusted signatures on the application, installer, and generated uninstaller, followed by validation on Windows 11 with Smart App Control enabled. Checksums alone do not satisfy that requirement.
+
+The project intends to apply for SignPath Foundation's open-source signing program after the repository is public and the release workflow is ready. SignPath has not accepted the project yet. See the [code signing policy](CODE_SIGNING_POLICY.md) for status, privacy, roles, and the release gate.
+
+The `Windows build` GitHub Actions workflow builds and tests the native application and installer. Its downloadable workflow artifact is deliberately named `unsigned`, retained briefly, and must not be attached to a public GitHub Release.
 
 ## Run the current PowerShell implementation
 
@@ -121,7 +146,7 @@ Developers can run a successfully published native build directly:
 .\artifacts\win-x64\MAFloater.exe
 ```
 
-Running the native executable does not replace the PowerShell launcher or its autostart task.
+Running the native executable does not replace the PowerShell launcher or its autostart task. The native tray menu provides **Start with Windows** for the native executable; do not enable both implementations at sign-in.
 
 ## Add the current PowerShell implementation to the Start menu
 
@@ -155,12 +180,12 @@ To remove only that task:
 
 The task does not run before login, store a Windows password, or request elevation. Duplicate launches in the same Windows session are prevented by a local mutex.
 
-These scripts currently register the PowerShell launcher. Native autostart has not yet been implemented.
+These scripts register only the PowerShell launcher. The native application manages its separate per-user startup entry from the tray menu, and the native installer offers the same option during setup.
 
 ## Removal
 
 1. If the Start menu shortcut was installed, run `Remove-StartMenuShortcut.ps1`.
-2. If the PowerShell autostart task was installed, run `Remove-Autostart.ps1`. The native rewrite does not currently install an autostart task.
+2. If the PowerShell autostart task was installed, run `Remove-Autostart.ps1`. For the native application, clear **Start with Windows** from its tray menu or uninstall it.
 3. Exit every running MA Floater instance.
 4. Delete the project folder and any separately copied native publication.
 5. Delete `%LOCALAPPDATA%\MAFloater` to remove the shared encrypted credential and settings.
@@ -176,6 +201,7 @@ These scripts currently register the PowerShell launcher. Native autostart has n
 - `Start-MAFloater.vbs` — windowless launcher used by the Start menu shortcut
 - `Install-StartMenuShortcut.ps1` / `Remove-StartMenuShortcut.ps1` — optional per-user Start menu integration
 - `Install-Autostart.ps1` / `Remove-Autostart.ps1` — optional scheduled-task management
+- `Build-Installer.ps1` / `installer\MAFloater.iss` — native per-user single-EXE installer build
 - `Build-Icon.ps1` — generates the multi-resolution Windows icon from the PNG artwork
 - `Build.ps1` — syntax validation and staging
 - `Test.ps1` — dependency-free repository checks
