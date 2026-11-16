@@ -58,6 +58,22 @@ Assert-True (
     $iconHeader[0] -eq 0 -and $iconHeader[1] -eq 0 -and
     $iconHeader[2] -eq 1 -and $iconHeader[3] -eq 0
 ) 'The Windows icon header is invalid.'
+$iconCount = [BitConverter]::ToUInt16($iconHeader, 4)
+Assert-True ($iconCount -eq 4) 'The Windows icon must contain four image sizes.'
+$iconSizes = for ($index = 0; $index -lt $iconCount; $index++) {
+    $entryOffset = 6 + (16 * $index)
+    $width = [int]$iconHeader[$entryOffset]
+    $height = [int]$iconHeader[$entryOffset + 1]
+    if ($width -eq 0) { $width = 256 }
+    if ($height -eq 0) { $height = 256 }
+    Assert-True ($width -eq $height) 'Every Windows icon frame must be square.'
+    Assert-True ([BitConverter]::ToUInt16($iconHeader, $entryOffset + 6) -eq 32) `
+        'Every Windows icon frame must use 32-bit color.'
+    $width
+}
+Assert-True (
+    (@($iconSizes) -join ',') -eq '16,32,48,256'
+) 'The Windows icon must contain 16, 32, 48, and 256 pixel frames.'
 $runtimeArtifacts = @(
     Get-ChildItem -LiteralPath $projectRoot -Recurse -File |
         Where-Object { $_.Name -in @('connection.json', 'credential.dat', 'settings.txt') }
@@ -72,13 +88,47 @@ Assert-True (
 Assert-True (
     $sourceText.Contains('$script:artworkHttpClient.DefaultRequestHeaders.Authorization')
 ) 'The artwork authorization guard is missing.'
-
+Assert-True (
+    $sourceText.Contains("[MAFloater.ShellIdentity]::SetCurrentProcessExplicitAppUserModelID('MAFloater.Desktop')") -and
+    $sourceText.IndexOf("[MAFloater.ShellIdentity]::SetCurrentProcessExplicitAppUserModelID('MAFloater.Desktop')") -lt
+        $sourceText.IndexOf('[xml]$xaml') -and
+    $sourceText.Contains('$window.Icon = [Windows.Interop.Imaging]::CreateBitmapSourceFromHIcon')
+) 'The branded taskbar identity must be set before the WPF window is created.'
+Assert-True (
+    $sourceText.Contains('$taskbarIconHandle = [MAFloater.ShellIdentity]::LoadSharedIcon($iconPath, 40)') -and
+    $sourceText.Contains('[MAFloater.ShellIdentity]::SetWindowIcons($windowHandle, $taskbarIconHandle)') -and
+    $sourceText.Contains('SendMessage(windowHandle, SetIcon, new System.IntPtr(2), iconHandle);')
+) 'The user-confirmed 40-pixel icon must be assigned to every Windows window-icon slot.'
 $removeAutostart = Get-Content -LiteralPath (Join-Path $projectRoot 'Remove-Autostart.ps1') -Raw
 $ownershipCheck = $removeAutostart.IndexOf('$actions[0].WorkingDirectory -ne $projectRoot')
 $unregisterCall = $removeAutostart.IndexOf('Unregister-ScheduledTask')
 Assert-True (
     $ownershipCheck -ge 0 -and $unregisterCall -gt $ownershipCheck
 ) 'Autostart removal must verify task ownership before unregistering it.'
+
+$removeStartMenu = Get-Content -LiteralPath (Join-Path $projectRoot 'Remove-StartMenuShortcut.ps1') -Raw
+$shortcutOwnershipCheck = $removeStartMenu.IndexOf('$matchesCurrent = $shortcut.TargetPath -eq $windowsScriptHost')
+$shortcutRemoval = $removeStartMenu.IndexOf('Remove-Item -LiteralPath $shortcutPath')
+Assert-True (
+    $shortcutOwnershipCheck -ge 0 -and $shortcutRemoval -gt $shortcutOwnershipCheck
+) 'Start menu removal must verify shortcut ownership before deleting it.'
+
+$windowlessLauncherPath = Join-Path $projectRoot 'Start-MAFloater.vbs'
+Assert-True (Test-Path -LiteralPath $windowlessLauncherPath) `
+    'The windowless Start menu launcher is missing.'
+$windowlessLauncher = Get-Content -LiteralPath $windowlessLauncherPath -Raw
+Assert-True (
+    $windowlessLauncher.Contains('shell.Run command, 0, False') -and
+    $windowlessLauncher.Contains('WindowsPowerShell\v1.0\powershell.exe')
+) 'The Start menu launcher must run Windows PowerShell without showing a console window.'
+
+$installStartMenu = Get-Content -LiteralPath (Join-Path $projectRoot 'Install-StartMenuShortcut.ps1') -Raw
+Assert-True (
+    $sourceText.Contains("SetCurrentProcessExplicitAppUserModelID('MAFloater.Desktop')") -and
+    $installStartMenu.Contains("`$appUserModelId = 'MAFloater.Desktop'") -and
+    $installStartMenu.Contains("SetAppUserModelId(`$shortcutPath, `$appUserModelId)") -and
+    $installStartMenu.Contains("ExtendedProperty('System.AppUserModel.ID')")
+) 'The process and Start menu shortcut must use the same verified Windows app identity.'
 
 $sourceAst = [Management.Automation.Language.Parser]::ParseFile(
     $source, [ref]$null, [ref]$null

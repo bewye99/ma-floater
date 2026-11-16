@@ -8,6 +8,69 @@ Add-Type -AssemblyName System.Security
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
+if (-not ('MAFloater.ShellIdentity' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System.Runtime.InteropServices;
+
+namespace MAFloater
+{
+    public static class ShellIdentity
+    {
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
+        public static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
+
+        [DllImport("user32.dll", PreserveSig = true)]
+        private static extern System.IntPtr SendMessage(
+            System.IntPtr windowHandle,
+            uint message,
+            System.IntPtr parameter,
+            System.IntPtr value);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern System.IntPtr LoadImage(
+            System.IntPtr instance,
+            string name,
+            uint type,
+            int width,
+            int height,
+            uint flags);
+
+        public static System.IntPtr LoadSharedIcon(string path, int size)
+        {
+            const uint ImageIcon = 1;
+            const uint LoadFromFile = 0x10;
+            const uint LoadShared = 0x8000;
+            System.IntPtr iconHandle = LoadImage(
+                System.IntPtr.Zero,
+                path,
+                ImageIcon,
+                size,
+                size,
+                LoadFromFile | LoadShared);
+            if (iconHandle == System.IntPtr.Zero)
+            {
+                throw new System.ComponentModel.Win32Exception();
+            }
+            return iconHandle;
+        }
+
+        public static void SetWindowIcons(System.IntPtr windowHandle, System.IntPtr iconHandle)
+        {
+            const uint SetIcon = 0x80;
+            SendMessage(windowHandle, SetIcon, new System.IntPtr(0), iconHandle);
+            SendMessage(windowHandle, SetIcon, new System.IntPtr(1), iconHandle);
+            SendMessage(windowHandle, SetIcon, new System.IntPtr(2), iconHandle);
+        }
+    }
+}
+'@
+}
+
+$shellIdentityResult = [MAFloater.ShellIdentity]::SetCurrentProcessExplicitAppUserModelID('MAFloater.Desktop')
+if ($shellIdentityResult -ne 0) {
+    throw "Could not set the MA Floater taskbar identity (HRESULT 0x$('{0:X8}' -f $shellIdentityResult))."
+}
+
 $createdNew = $false
 $singleInstance = New-Object System.Threading.Mutex($true, 'Local\MAFloater', [ref]$createdNew)
 if (-not $createdNew) { exit 0 }
@@ -199,10 +262,12 @@ $trayExitItem = New-Object Windows.Forms.ToolStripMenuItem('Exit')
 $notifyIcon = New-Object Windows.Forms.NotifyIcon
 $iconPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'assets\ma-floater.ico'
 $brandIcon = $null
+$taskbarIconHandle = [IntPtr]::Zero
 $ownsBrandIcon = $false
 if (Test-Path -LiteralPath $iconPath) {
     try {
         $brandIcon = New-Object Drawing.Icon($iconPath)
+        $taskbarIconHandle = [MAFloater.ShellIdentity]::LoadSharedIcon($iconPath, 40)
         $ownsBrandIcon = $true
         $window.Icon = [Windows.Interop.Imaging]::CreateBitmapSourceFromHIcon(
             $brandIcon.Handle,
@@ -213,6 +278,7 @@ if (Test-Path -LiteralPath $iconPath) {
     catch { $brandIcon = $null }
 }
 if ($null -eq $brandIcon) { $brandIcon = [Drawing.SystemIcons]::Application }
+if ($taskbarIconHandle -eq [IntPtr]::Zero) { $taskbarIconHandle = $brandIcon.Handle }
 $notifyIcon.Icon = $brandIcon
 $notifyIcon.Text = 'MA Floater'
 $notifyIcon.ContextMenuStrip = $trayMenu
@@ -815,6 +881,8 @@ $dragSurface.Add_MouseLeftButtonDown({
     try { $window.DragMove(); Save-WindowSettings } catch {}
 })
 $window.Add_Loaded({
+    $windowHandle = (New-Object Windows.Interop.WindowInteropHelper($window)).Handle
+    [MAFloater.ShellIdentity]::SetWindowIcons($windowHandle, $taskbarIconHandle)
     Load-WindowSettings
     Clamp-ToVisibleDesktop
     Update-PinAppearance
