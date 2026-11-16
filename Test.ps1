@@ -48,6 +48,62 @@ Assert-True ($readme.Contains('# MA Floater')) 'README branding is missing.'
 Assert-True ($readme.Contains('unofficial')) 'README must identify the project as unofficial.'
 Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot 'LICENSE')) 'LICENSE is missing.'
 Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot '.gitignore')) '.gitignore is missing.'
+
+$signingPolicyPath = Join-Path $projectRoot 'CODE_SIGNING_POLICY.md'
+$workflowPath = Join-Path $projectRoot '.github\workflows\windows-build.yml'
+Assert-True (Test-Path -LiteralPath $signingPolicyPath) 'The code signing policy is missing.'
+Assert-True (Test-Path -LiteralPath $workflowPath) 'The Windows build workflow is missing.'
+$signingPolicyText = Get-Content -LiteralPath $signingPolicyPath -Raw
+$workflowText = Get-Content -LiteralPath $workflowPath -Raw
+Assert-True (
+    $signingPolicyText.Contains('currently unsigned development artifacts') -and
+    $signingPolicyText.Contains('SignPath Foundation has not accepted MA Floater yet') -and
+    $signingPolicyText.Contains('generated uninstaller')
+) 'The signing policy must state the actual unsigned status and complete signing scope.'
+Assert-True (
+    $workflowText.Contains('ma-floater-unsigned-${{ github.sha }}') -and
+    $workflowText.Contains('retention-days: 7') -and
+    -not $workflowText.Contains('release upload') -and
+    -not $workflowText.Contains('gh release')
+) 'Unsigned CI artifacts must remain short-lived inputs and must not be published as releases.'
+
+$installerPath = Join-Path $projectRoot 'installer\MAFloater.iss'
+$installerBuildPath = Join-Path $projectRoot 'Build-Installer.ps1'
+Assert-True (Test-Path -LiteralPath $installerPath) 'The native installer definition is missing.'
+Assert-True (Test-Path -LiteralPath $installerBuildPath) 'The native installer build script is missing.'
+$installerText = Get-Content -LiteralPath $installerPath -Raw
+$installerBuildText = Get-Content -LiteralPath $installerBuildPath -Raw
+Assert-True (
+    $installerText.Contains('PrivilegesRequired=lowest') -and
+    $installerText.Contains('DefaultDirName={localappdata}\Programs\MA Floater')
+) 'The native installer must remain a non-administrative per-user installation.'
+Assert-True (
+    $installerText.Contains('Source: "..\artifacts\win-x64\{#MyAppExeName}"') -and
+    $installerText.Contains('Name: "{userprograms}\MA Floater"') -and
+    $installerText.Contains('Flags: uninsdeletevalue')
+) 'The native installer must package the verified app, create a Start menu entry, and own its startup value.'
+Assert-True (
+    $installerBuildText.Contains("Join-Path `$projectRoot 'Build-Native.ps1'") -and
+    $installerBuildText.Contains('MAFloater-Setup-$version-x64.exe')
+) 'The installer build must verify the native application and require the expected single-EXE output.'
+Assert-True (
+    -not $installerText.Contains('credential.dat') -and
+    -not $installerText.Contains('connection.json')
+) 'The installer must not bundle Music Assistant credentials or connection settings.'
+
+$nativeWindowText = Get-Content -LiteralPath (Join-Path $projectRoot 'src\MAFloater.App\MainWindow.xaml.cs') -Raw
+$nativeStartupText = Get-Content -LiteralPath (Join-Path $projectRoot 'src\MAFloater.App\StartupRegistration.cs') -Raw
+Assert-True (
+    $nativeWindowText.Contains('TimeSpan.FromSeconds(15)') -and
+    $nativeWindowText.Contains('SetCompactMode(true)') -and
+    $nativeWindowText.Contains('SetCompactMode(false)')
+) 'The native compact-window timer and hover restoration are missing.'
+Assert-True (
+    $nativeStartupText.Contains('Registry.CurrentUser') -and
+    $nativeStartupText.Contains('CurrentVersion\Run') -and
+    $nativeStartupText.IndexOf('string.Equals(') -lt $nativeStartupText.IndexOf('key.DeleteValue(')
+) 'Native startup removal must verify that the current executable owns the per-user startup value.'
+
 $iconPath = Join-Path $projectRoot 'assets\ma-floater.ico'
 $iconSourcePath = Join-Path $projectRoot 'assets\ma-floater.png'
 Assert-True (Test-Path -LiteralPath $iconPath) 'The Windows icon is missing.'
