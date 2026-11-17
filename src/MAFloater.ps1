@@ -542,10 +542,10 @@ function Initialize-MusicAssistantConnection {
     $handler = New-Object Net.Http.HttpClientHandler
     $script:httpClient = New-Object Net.Http.HttpClient($handler)
     $script:httpClient.Timeout = [TimeSpan]::FromSeconds(3)
-    $script:httpClient.DefaultRequestHeaders.UserAgent.ParseAdd('MAFloater/0.1.0')
+    $script:httpClient.DefaultRequestHeaders.UserAgent.ParseAdd('MAFloater/0.1.1')
     $script:artworkHttpClient = New-Object Net.Http.HttpClient
     $script:artworkHttpClient.Timeout = [TimeSpan]::FromSeconds(3)
-    $script:artworkHttpClient.DefaultRequestHeaders.UserAgent.ParseAdd('MAFloater/0.1.0')
+    $script:artworkHttpClient.DefaultRequestHeaders.UserAgent.ParseAdd('MAFloater/0.1.1')
     Connect-MusicAssistant
 }
 

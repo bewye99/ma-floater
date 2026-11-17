@@ -46,6 +46,12 @@ foreach ($value in $forbidden) {
 $readme = Get-Content -LiteralPath (Join-Path $projectRoot 'README.md') -Raw
 Assert-True ($readme.Contains('# MA Floater')) 'README branding is missing.'
 Assert-True ($readme.Contains('unofficial')) 'README must identify the project as unofficial.'
+Assert-True (
+    $readme.Contains('Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force') -and
+    $readme.Contains('no native executable or installer is included in the public release') -and
+    $readme.IndexOf('## Install and run the public PowerShell release') -lt
+        $readme.IndexOf('## Contributor and developer workflow')
+) 'README must lead with the complete public PowerShell installation path and separate developer work.'
 Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot 'LICENSE')) 'LICENSE is missing.'
 Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot '.gitignore')) '.gitignore is missing.'
 
@@ -163,20 +169,11 @@ Assert-True (
 ) 'Autostart removal must verify task ownership before unregistering it.'
 
 $removeStartMenu = Get-Content -LiteralPath (Join-Path $projectRoot 'Remove-StartMenuShortcut.ps1') -Raw
-$shortcutOwnershipCheck = $removeStartMenu.IndexOf('$matchesCurrent = $shortcut.TargetPath -eq $windowsScriptHost')
+$shortcutOwnershipCheck = $removeStartMenu.IndexOf('$matchesCurrent = $shortcut.TargetPath -eq $windowsPowerShell')
 $shortcutRemoval = $removeStartMenu.IndexOf('Remove-Item -LiteralPath $shortcutPath')
 Assert-True (
     $shortcutOwnershipCheck -ge 0 -and $shortcutRemoval -gt $shortcutOwnershipCheck
 ) 'Start menu removal must verify shortcut ownership before deleting it.'
-
-$windowlessLauncherPath = Join-Path $projectRoot 'Start-MAFloater.vbs'
-Assert-True (Test-Path -LiteralPath $windowlessLauncherPath) `
-    'The windowless Start menu launcher is missing.'
-$windowlessLauncher = Get-Content -LiteralPath $windowlessLauncherPath -Raw
-Assert-True (
-    $windowlessLauncher.Contains('shell.Run command, 0, False') -and
-    $windowlessLauncher.Contains('WindowsPowerShell\v1.0\powershell.exe')
-) 'The Start menu launcher must run Windows PowerShell without showing a console window.'
 
 $installStartMenu = Get-Content -LiteralPath (Join-Path $projectRoot 'Install-StartMenuShortcut.ps1') -Raw
 Assert-True (
@@ -185,6 +182,33 @@ Assert-True (
     $installStartMenu.Contains("SetAppUserModelId(`$shortcutPath, `$appUserModelId)") -and
     $installStartMenu.Contains("ExtendedProperty('System.AppUserModel.ID')")
 ) 'The process and Start menu shortcut must use the same verified Windows app identity.'
+Assert-True (
+    $installStartMenu.Contains('$shortcut.TargetPath = $windowsPowerShell') -and
+    $installStartMenu.Contains('-WindowStyle Hidden') -and
+    $installStartMenu.Contains('-ExecutionPolicy Bypass') -and
+    -not $installStartMenu.Contains('$shortcut.TargetPath = $windowsScriptHost')
+) 'The Start menu shortcut must launch hidden Windows PowerShell directly without requiring VBScript.'
+
+$connectionSetup = Get-Content -LiteralPath (Join-Path $projectRoot 'Set-MusicAssistantConnection.ps1') -Raw
+$loginCall = $connectionSetup.IndexOf('/auth/login')
+$guestCheck = $connectionSetup.IndexOf("[string]`$login.user.role -ne 'guest'")
+$credentialWrite = $connectionSetup.IndexOf('[IO.File]::WriteAllBytes($credentialPath, $protectedBytes)')
+$providerField = $connectionSetup.IndexOf("provider_id = 'builtin'")
+$credentialsBlock = $connectionSetup.IndexOf('credentials = @{', $providerField)
+$usernameField = $connectionSetup.IndexOf('username = $Username.Trim()', $credentialsBlock)
+$passwordField = $connectionSetup.IndexOf('password = $plainPassword', $usernameField)
+$deviceNameField = $connectionSetup.IndexOf("device_name = 'MA Floater connection setup'", $passwordField)
+Assert-True (
+    $loginCall -ge 0 -and $guestCheck -gt $loginCall -and $credentialWrite -gt $guestCheck -and
+    $providerField -ge 0 -and $credentialsBlock -gt $providerField -and
+    $usernameField -gt $credentialsBlock -and $passwordField -gt $usernameField -and
+    $deviceNameField -gt $passwordField -and
+    $connectionSetup.Contains('ConvertTo-Json -Depth 6 -Compress') -and
+    $connectionSetup.Contains('If Ctrl+V does not work, use right-click or Shift+Insert to paste.') -and
+    $connectionSetup.Contains('if ($login.token)') -and
+    $connectionSetup.Contains("command = 'auth/logout'") -and
+    $connectionSetup.Contains("+ '/api'")
+) 'Connection setup must validate the login and Guest role before saving credentials and explain masked paste behavior.'
 
 $sourceAst = [Management.Automation.Language.Parser]::ParseFile(
     $source, [ref]$null, [ref]$null

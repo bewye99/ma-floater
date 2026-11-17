@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 $shortcutName = 'MA Floater.lnk'
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $playerScript = Join-Path $projectRoot 'bin\MAFloater.ps1'
-$launcherScript = Join-Path $projectRoot 'Start-MAFloater.vbs'
+$legacyLauncherScript = Join-Path $projectRoot 'Start-MAFloater.vbs'
 $iconPath = Join-Path $projectRoot 'assets\ma-floater.ico'
 $windowsScriptHost = Join-Path $env:WINDIR 'System32\wscript.exe'
 $windowsPowerShell = 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
@@ -114,29 +114,28 @@ if (-not (Test-Path -LiteralPath $playerScript)) {
 if (-not (Test-Path -LiteralPath $iconPath)) {
     throw "The MA Floater icon is missing: $iconPath"
 }
-if (-not (Test-Path -LiteralPath $launcherScript)) {
-    throw "The windowless MA Floater launcher is missing: $launcherScript"
-}
-
-$arguments = '"' + $launcherScript + '"'
-$legacyArguments = '-NoProfile -STA -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $playerScript + '"'
+$arguments = '-NoLogo -NoProfile -STA -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $playerScript + '"'
+$previousPowerShellArguments = '-NoProfile -STA -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $playerScript + '"'
+$legacyVbsArguments = '"' + $legacyLauncherScript + '"'
 $iconLocation = $iconPath + ',0'
 $shell = New-Object -ComObject WScript.Shell
 
 if (Test-Path -LiteralPath $shortcutPath) {
     $existing = $shell.CreateShortcut($shortcutPath)
-    $matchesCurrent = $existing.TargetPath -eq $windowsScriptHost -and
+    $matchesCurrent = $existing.TargetPath -eq $windowsPowerShell -and
         $existing.Arguments -eq $arguments
-    $matchesLegacy = $existing.TargetPath -eq $windowsPowerShell -and
-        $existing.Arguments -eq $legacyArguments
-    if ((-not $matchesCurrent -and -not $matchesLegacy) -or
+    $matchesPreviousPowerShell = $existing.TargetPath -eq $windowsPowerShell -and
+        $existing.Arguments -eq $previousPowerShellArguments
+    $matchesLegacyVbs = $existing.TargetPath -eq $windowsScriptHost -and
+        $existing.Arguments -eq $legacyVbsArguments
+    if ((-not $matchesCurrent -and -not $matchesPreviousPowerShell -and -not $matchesLegacyVbs) -or
         $existing.WorkingDirectory -ne $projectRoot) {
         throw "A different shortcut already uses '$shortcutPath'; refusing to replace it."
     }
 }
 
 $shortcut = $shell.CreateShortcut($shortcutPath)
-$shortcut.TargetPath = $windowsScriptHost
+$shortcut.TargetPath = $windowsPowerShell
 $shortcut.Arguments = $arguments
 $shortcut.WorkingDirectory = $projectRoot
 $shortcut.IconLocation = $iconLocation
@@ -155,6 +154,6 @@ if ($savedAppUserModelId -ne $appUserModelId) {
 [pscustomobject]@{
     Name = 'MA Floater'
     Path = $shortcutPath
-    Target = $windowsScriptHost
+    Target = $windowsPowerShell
     AppUserModelId = $savedAppUserModelId
 }

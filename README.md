@@ -4,7 +4,7 @@ MA Floater is an unofficial, lightweight floating controller for [Music Assistan
 
 MA Floater is an independent community project. It is not affiliated with or endorsed by Music Assistant or the Open Home Foundation.
 
-The current 0.1.0 PowerShell implementation is described below. The repository also contains an in-progress native .NET/WPF replacement and single-EXE Windows installer, but they are not yet the default release.
+The current 0.1.1 PowerShell implementation is described below. The repository also contains an in-progress native .NET/WPF replacement and single-EXE Windows installer, but no native executable or installer is included in the public release.
 
 ## Features
 
@@ -20,7 +20,7 @@ The current 0.1.0 PowerShell implementation is described below. The repository a
 - Branded multi-resolution tray and full-size taskbar icon
 - Optional per-user Start menu entry
 - Optional per-user autostart after Windows sign-in
-- Current 0.1.0 PowerShell implementation uses no third-party packages or compiled executable
+- Current 0.1.1 PowerShell implementation uses no third-party packages or compiled executable
 
 ## Requirements and compatibility
 
@@ -28,9 +28,9 @@ The current 0.1.0 PowerShell implementation is described below. The repository a
 - A reachable Music Assistant server with built-in user authentication enabled
 - A dedicated Music Assistant account with the **Guest** role
 
-The current PowerShell implementation requires Windows PowerShell 5.1 and the .NET components included with Windows. Building the native application requires the .NET 10 SDK; its self-contained publication does not require users to install .NET separately.
+The current PowerShell implementation requires Windows PowerShell 5.1 and the .NET components included with Windows. Users do not need the .NET SDK, Inno Setup, or any native build tools.
 
-Version 0.1.0 has been tested with Music Assistant 2.10.11. MA Floater uses Music Assistant API commands that may change in later releases; check the issue tracker when a Music Assistant update causes a regression.
+Version 0.1.1 has been clean-room tested with Music Assistant 2.10.12 in a fresh Windows Sandbox, including validated Guest-account setup and Start-menu launching without the VBScript engine. MA Floater uses Music Assistant API commands that may change in later releases; check the issue tracker when a Music Assistant update causes a regression.
 
 ## Security and privacy
 
@@ -47,19 +47,35 @@ MA Floater connects to the configured Music Assistant server. Artwork may also b
 
 Use an `https://` Music Assistant URL when the server is reachable over an untrusted network. An `http://` connection does not encrypt the Guest username, password, access token, playback data, or control commands in transit; use HTTP only on a network you trust. External artwork is downloaded through a separate client that does not receive the Music Assistant authorization token.
 
-## Set up Music Assistant access
+## Install and run the public PowerShell release
 
-Both implementations require a dedicated Guest account created in **Music Assistant → Settings → User Management**.
+1. Download the release source archive from GitHub and extract it to a permanent folder. Moving or deleting that folder later breaks its optional Start menu and autostart entries.
+2. Create a dedicated account in **Music Assistant → Settings → User Management** and assign it the **Guest** role. Set its player filter to the players MA Floater should control, or leave the filter empty to allow all players.
+3. In File Explorer, open the extracted MA Floater folder, click the address bar, type `powershell`, and press Enter.
+4. Permit scripts only in this PowerShell window:
 
-### Current PowerShell implementation
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+```
 
-Open Windows PowerShell in the project folder and run:
+5. Configure the connection:
+
 
 ```powershell
 .\Set-MusicAssistantConnection.ps1
 ```
 
-The script prompts for the server URL, Guest username, optional preferred fallback queue, and a masked password. Values can also be supplied as parameters:
+Use the direct Music Assistant server URL, normally ending in port `8095`, rather than a Home Assistant dashboard URL. The script validates the server, login, and Guest role before saving anything. Its password field is masked; no characters appear while typing. If Ctrl+V does not work in Windows PowerShell 5.1, use right-click or Shift+Insert to paste.
+
+6. Start MA Floater:
+
+```powershell
+.\Start-MAFloater.ps1
+```
+
+The launcher uses Microsoft's signed Windows PowerShell executable with a process-only execution-policy selection. It does not change the computer's persistent PowerShell policy.
+
+The setup values can also be supplied as parameters:
 
 ```powershell
 .\Set-MusicAssistantConnection.ps1 -ServerUrl 'http://music-assistant.local:8095' -Username 'ma-floater' -PreferredQueue 'Living Room'
@@ -67,13 +83,18 @@ The script prompts for the server URL, Guest username, optional preferred fallba
 
 Do not put a password in a command or script argument. The password is always requested through the masked prompt.
 
-### Native rewrite
+## Optional Windows integration
 
-Run the published native executable. If no saved connection exists, its first-run setup window prompts for the Music Assistant server URL, Guest username, optional preferred fallback queue, and password.
+After MA Floater works from `Start-MAFloater.ps1`, the following optional commands add it to the current user's Start menu or start it after Windows sign-in:
 
-The native application uses the same `%LOCALAPPDATA%\MAFloater` settings and DPAPI-protected credential as the PowerShell implementation. Existing settings are reused automatically. `Set-MusicAssistantConnection.ps1` remains compatible for preconfiguration but is not required.
+```powershell
+.\Install-StartMenuShortcut.ps1
+.\Install-Autostart.ps1
+```
 
-## Build and test
+The Start menu shortcut uses Windows PowerShell directly and does not depend on the deprecated Windows VBScript engine. The autostart task is limited to the current user and runs only after sign-in. Neither command requests administrator access.
+
+## Contributor and developer workflow
 
 ### Current PowerShell implementation
 
@@ -89,7 +110,7 @@ Run the dependency-free verification suite after changing the PowerShell source,
 .\Test.ps1
 ```
 
-The tests validate PowerShell syntax, source/build equality, publication branding, absence of known personal defaults and runtime credentials, icon structure and frame sizes, artwork authorization isolation, the 40-pixel taskbar assignment, windowless Start menu launching, safe autostart and shortcut removal, shared Windows app identity, and queue-selection behavior. They do not validate the native application.
+The tests validate PowerShell syntax, source/build equality, publication branding, absence of known personal defaults and runtime credentials, setup validation, icon structure and frame sizes, artwork authorization isolation, the 40-pixel taskbar assignment, hidden Start menu launching without VBScript, safe autostart and shortcut removal, shared Windows app identity, and queue-selection behavior. They do not validate the native application.
 
 ### Native application foundation
 
@@ -130,14 +151,6 @@ The project intends to apply for SignPath Foundation's open-source signing progr
 
 The `Windows build` GitHub Actions workflow builds and tests the native application and installer. Its downloadable workflow artifact is deliberately named `unsigned`, retained briefly, and must not be attached to a public GitHub Release.
 
-## Run the current PowerShell implementation
-
-```powershell
-.\Start-MAFloater.ps1
-```
-
-The launcher uses Microsoft's signed Windows PowerShell executable with a process-only execution-policy selection. It does not change the computer's persistent PowerShell policy.
-
 Use the window's minimize button to send MA Floater to the taskbar. Double-click its tray icon, or choose **Open player**, to restore it. Choose **Exit** from the tray menu or close the window to stop it and revoke its current Music Assistant session.
 
 Developers can run a successfully published native build directly:
@@ -162,7 +175,7 @@ To remove only the shortcut created by this project folder:
 .\Remove-StartMenuShortcut.ps1
 ```
 
-The shortcut uses the branded icon and a small, reviewable Windows Script Host launcher to open the same PowerShell implementation as `Start-MAFloater.ps1` without showing a console window. The installer assigns the shortcut the same Windows app identity as the running player so the taskbar uses the branded application icon instead of a PowerShell fallback. Adding it to the Start menu does not enable autostart. If Windows Script Host is disabled by organizational policy, run `Start-MAFloater.ps1` instead.
+The shortcut uses the branded icon and launches the PowerShell implementation in a hidden window. It assigns the shortcut the same Windows app identity as the running player so the taskbar uses the branded application icon instead of a PowerShell fallback. Adding it to the Start menu does not enable autostart.
 
 ## Start the current PowerShell implementation automatically
 
@@ -198,7 +211,7 @@ These scripts register only the PowerShell launcher. The native application mana
 - `assets\ma-floater.ico` / `assets\ma-floater.png` — Windows icon and transparent source artwork
 - `Set-MusicAssistantConnection.ps1` — per-user connection setup
 - `Start-MAFloater.ps1` — hidden launcher
-- `Start-MAFloater.vbs` — windowless launcher used by the Start menu shortcut
+- `Start-MAFloater.vbs` — legacy launcher retained for safe removal of shortcuts created by version 0.1.0
 - `Install-StartMenuShortcut.ps1` / `Remove-StartMenuShortcut.ps1` — optional per-user Start menu integration
 - `Install-Autostart.ps1` / `Remove-Autostart.ps1` — optional scheduled-task management
 - `Build-Installer.ps1` / `installer\MAFloater.iss` — native per-user single-EXE installer build

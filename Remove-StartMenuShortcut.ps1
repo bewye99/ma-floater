@@ -5,12 +5,13 @@ $ErrorActionPreference = 'Stop'
 $shortcutName = 'MA Floater.lnk'
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $playerScript = Join-Path $projectRoot 'bin\MAFloater.ps1'
-$launcherScript = Join-Path $projectRoot 'Start-MAFloater.vbs'
+$legacyLauncherScript = Join-Path $projectRoot 'Start-MAFloater.vbs'
 $iconPath = Join-Path $projectRoot 'assets\ma-floater.ico'
 $windowsScriptHost = Join-Path $env:WINDIR 'System32\wscript.exe'
 $windowsPowerShell = 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
-$expectedArguments = '"' + $launcherScript + '"'
-$legacyArguments = '-NoProfile -STA -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $playerScript + '"'
+$expectedArguments = '-NoLogo -NoProfile -STA -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $playerScript + '"'
+$previousPowerShellArguments = '-NoProfile -STA -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $playerScript + '"'
+$legacyVbsArguments = '"' + $legacyLauncherScript + '"'
 $expectedIconLocation = $iconPath + ',0'
 $shortcutPath = Join-Path ([Environment]::GetFolderPath('Programs')) $shortcutName
 
@@ -21,11 +22,13 @@ if (-not (Test-Path -LiteralPath $shortcutPath)) {
 
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut($shortcutPath)
-$matchesCurrent = $shortcut.TargetPath -eq $windowsScriptHost -and
+$matchesCurrent = $shortcut.TargetPath -eq $windowsPowerShell -and
     $shortcut.Arguments -eq $expectedArguments
-$matchesLegacy = $shortcut.TargetPath -eq $windowsPowerShell -and
-    $shortcut.Arguments -eq $legacyArguments
-if ((-not $matchesCurrent -and -not $matchesLegacy) -or
+$matchesPreviousPowerShell = $shortcut.TargetPath -eq $windowsPowerShell -and
+    $shortcut.Arguments -eq $previousPowerShellArguments
+$matchesLegacyVbs = $shortcut.TargetPath -eq $windowsScriptHost -and
+    $shortcut.Arguments -eq $legacyVbsArguments
+if ((-not $matchesCurrent -and -not $matchesPreviousPowerShell -and -not $matchesLegacyVbs) -or
     $shortcut.WorkingDirectory -ne $projectRoot -or
     $shortcut.IconLocation -ne $expectedIconLocation) {
     throw "The shortcut named '$shortcutName' was not created by this MA Floater folder; refusing to remove it."
